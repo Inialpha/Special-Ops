@@ -33,6 +33,9 @@ jobs:
       - name: Validate project
         run: godot --headless --path . --editor --quit
 
+      - name: Install Android build template
+        run: godot --headless --path . --editor --quit --install-android-build-template
+
       - name: Export Android debug APK
         run: mkdir -p build && godot --headless --path . --editor --quit-after 10 --export-debug Android build/Special-Ops-debug.apk
 
