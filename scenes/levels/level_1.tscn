@@ -1,0 +1,136 @@
+[gd_scene load_steps=14 format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="1"]
+[ext_resource type="PackedScene" path="res://scenes/enemies/enemy.tscn" id="2"]
+
+[sub_resource type="BoxMesh" id="FloorMesh"]
+size = Vector3(60, 0.4, 60)
+[sub_resource type="BoxShape3D" id="FloorShape"]
+size = Vector3(60, 0.4, 60)
+[sub_resource type="BoxMesh" id="WallMesh"]
+size = Vector3(12, 3, 0.6)
+[sub_resource type="BoxShape3D" id="WallShape"]
+size = Vector3(12, 3, 0.6)
+[sub_resource type="BoxMesh" id="CoverMesh"]
+size = Vector3(3, 1.2, 2)
+[sub_resource type="BoxShape3D" id="CoverShape"]
+size = Vector3(3, 1.2, 2)
+[sub_resource type="BoxMesh" id="ExtractionMesh"]
+size = Vector3(5, 0.12, 5)
+[sub_resource type="StandardMaterial3D" id="FloorMat"]
+albedo_color = Color(0.16, 0.19, 0.17, 1)
+roughness = 1.0
+[sub_resource type="StandardMaterial3D" id="WallMat"]
+albedo_color = Color(0.24, 0.27, 0.25, 1)
+roughness = 0.9
+[sub_resource type="StandardMaterial3D" id="ExtractionMat"]
+albedo_color = Color(0.1, 0.7, 0.3, 1)
+emission_enabled = true
+emission = Color(0.05, 0.5, 0.15, 1)
+emission_energy_multiplier = 2.0
+
+[node name="Level1" type="Node3D"]
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+rotation_degrees = Vector3(-52, -25, 0)
+light_energy = 1.1
+shadow_enabled = true
+
+[node name="FillLight" type="DirectionalLight3D" parent="."]
+rotation_degrees = Vector3(-30, 150, 0)
+light_energy = 0.35
+
+[node name="Ground" type="StaticBody3D" parent="."]
+[node name="Mesh" type="MeshInstance3D" parent="Ground"]
+mesh = SubResource("FloorMesh")
+material_override = SubResource("FloorMat")
+[node name="Collision" type="CollisionShape3D" parent="Ground"]
+shape = SubResource("FloorShape")
+
+[node name="Walls" type="Node3D" parent="."]
+[node name="North" type="StaticBody3D" parent="Walls"]
+position = Vector3(0, 1.5, -28)
+[node name="Mesh" type="MeshInstance3D" parent="Walls/North"]
+mesh = SubResource("WallMesh")
+material_override = SubResource("WallMat")
+scale = Vector3(5, 1, 1)
+[node name="Collision" type="CollisionShape3D" parent="Walls/North"]
+shape = SubResource("WallShape")
+scale = Vector3(5, 1, 1)
+[node name="South" type="StaticBody3D" parent="Walls"]
+position = Vector3(0, 1.5, 28)
+rotation_degrees = Vector3(0, 180, 0)
+[node name="Mesh" type="MeshInstance3D" parent="Walls/South"]
+mesh = SubResource("WallMesh")
+material_override = SubResource("WallMat")
+scale = Vector3(5, 1, 1)
+[node name="Collision" type="CollisionShape3D" parent="Walls/South"]
+shape = SubResource("WallShape")
+scale = Vector3(5, 1, 1)
+[node name="East" type="StaticBody3D" parent="Walls"]
+position = Vector3(28, 1.5, 0)
+rotation_degrees = Vector3(0, 90, 0)
+[node name="Mesh" type="MeshInstance3D" parent="Walls/East"]
+mesh = SubResource("WallMesh")
+material_override = SubResource("WallMat")
+scale = Vector3(5, 1, 1)
+[node name="Collision" type="CollisionShape3D" parent="Walls/East"]
+shape = SubResource("WallShape")
+scale = Vector3(5, 1, 1)
+[node name="West" type="StaticBody3D" parent="Walls"]
+position = Vector3(-28, 1.5, 0)
+rotation_degrees = Vector3(0, 90, 0)
+[node name="Mesh" type="MeshInstance3D" parent="Walls/West"]
+mesh = SubResource("WallMesh")
+material_override = SubResource("WallMat")
+scale = Vector3(5, 1, 1)
+[node name="Collision" type="CollisionShape3D" parent="Walls/West"]
+shape = SubResource("WallShape")
+scale = Vector3(5, 1, 1)
+
+[node name="Cover1" type="StaticBody3D" parent="."]
+position = Vector3(-7, 0.6, -5)
+[node name="Mesh" type="MeshInstance3D" parent="Cover1"]
+mesh = SubResource("CoverMesh")
+material_override = SubResource("WallMat")
+[node name="Collision" type="CollisionShape3D" parent="Cover1"]
+shape = SubResource("CoverShape")
+[node name="Cover2" type="StaticBody3D" parent="."]
+position = Vector3(7, 0.6, -9)
+rotation_degrees = Vector3(0, 25, 0)
+[node name="Mesh" type="MeshInstance3D" parent="Cover2"]
+mesh = SubResource("CoverMesh")
+material_override = SubResource("WallMat")
+[node name="Collision" type="CollisionShape3D" parent="Cover2"]
+shape = SubResource("CoverShape")
+[node name="Cover3" type="StaticBody3D" parent="."]
+position = Vector3(3, 0.6, 5)
+rotation_degrees = Vector3(0, -20, 0)
+[node name="Mesh" type="MeshInstance3D" parent="Cover3"]
+mesh = SubResource("CoverMesh")
+material_override = SubResource("WallMat")
+[node name="Collision" type="CollisionShape3D" parent="Cover3"]
+shape = SubResource("CoverShape")
+
+[node name="Player" parent="." instance=ExtResource("1")]
+position = Vector3(0, 1, 20)
+
+[node name="Enemies" type="Node3D" parent="."]
+[node name="Enemy1" parent="Enemies" instance=ExtResource("2")]
+position = Vector3(-8, 1, -8)
+[node name="Enemy2" parent="Enemies" instance=ExtResource("2")]
+position = Vector3(7, 1, -11)
+[node name="Enemy3" parent="Enemies" instance=ExtResource("2")]
+position = Vector3(-12, 1, 0)
+[node name="Enemy4" parent="Enemies" instance=ExtResource("2")]
+position = Vector3(12, 1, 2)
+[node name="Enemy5" parent="Enemies" instance=ExtResource("2")]
+position = Vector3(-5, 1, -17)
+[node name="Enemy6" parent="Enemies" instance=ExtResource("2")]
+position = Vector3(5, 1, -20)
+
+[node name="Extraction" type="MeshInstance3D" parent="."]
+position = Vector3(0, 0.28, -24)
+mesh = SubResource("ExtractionMesh")
+material_override = SubResource("ExtractionMat")
+groups = ["extraction"]
