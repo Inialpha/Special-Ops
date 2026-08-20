@@ -65,6 +65,14 @@ jobs:
             -validity 10000 \
             -dname "CN=Android Debug,O=Android,C=US"
 
+      - name: Inject Keystore info into Export Config
+        shell: bash
+        run: |
+          # Use sed to safely overwrite the empty config strings with our created keystore details
+          sed -i 's|keystore/debug=""|keystore/debug="'"$GITHUB_WORKSPACE"'/build/debug.keystore"|g' export_presets.cfg
+          sed -i 's|keystore/debug_user=""|keystore/debug_user="androiddebugkey"|g' export_presets.cfg
+          sed -i 's|keystore/debug_password=""|keystore/debug_password="android"|g' export_presets.cfg
+
       - name: Verify Android toolchain
         shell: bash
         run: |
@@ -82,7 +90,7 @@ jobs:
           "$ANDROID_SDK_ROOT/build-tools/34.0.0/aapt" version
           java -version
 
-      - name: Validate project
+      - name: Validate project & Import assets
         run: godot --headless --path . --editor --quit
 
       - name: Inspect Android export configuration
@@ -95,14 +103,11 @@ jobs:
 
       - name: Export Android debug APK
         shell: bash
-        env:
-          GODOT_ANDROID_KEYSTORE_DEBUG_PATH: ${{ github.workspace }}/build/debug.keystore
-          GODOT_ANDROID_KEYSTORE_DEBUG_USER: androiddebugkey
-          GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD: android
         run: |
           set -euxo pipefail
           mkdir -p build
-          godot --headless --verbose --log-file build/godot-export.log --path . --export-debug Android build/Special-Ops-debug.apk
+          # Removed the broken local environment variables
+          godot --headless --verbose --log-file build/godot-export.log --path . --export-debug "Android" build/Special-Ops-debug.apk
           test -s build/Special-Ops-debug.apk
           file build/Special-Ops-debug.apk
           ls -lh build/Special-Ops-debug.apk
@@ -112,7 +117,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Special-Ops-build-diagnostics
+          # Combined paths under a cleaner array declaration pattern
           path: |
             build/Special-Ops-debug.apk
             build/godot-export.log
-          if-no-files-found: ignore
+          if-no-files-found: error # Changed to error to notify you explicitly if the build failed to generate
