@@ -106,7 +106,7 @@ func reload() -> void:
 	is_reloading = true
 	await get_tree().create_timer(1.1).timeout
 	var needed := magazine_size - ammo
-	var loaded := min(needed, reserve_ammo)
+	var loaded: int = min(needed, reserve_ammo)
 	ammo += loaded
 	reserve_ammo -= loaded
 	is_reloading = false
