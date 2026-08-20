@@ -21,16 +21,14 @@ var can_fire := true
 var mission_active := false
 var pitch := -0.12
 var mission_controller: Node
-var camera: Camera3D
-var weapon_ray: RayCast3D
+@onready var camera: Camera3D = $Head/Camera3D
+@onready var weapon_ray: RayCast3D = $Head/Camera3D/WeaponRay
 
 func _ready() -> void:
 	_ensure_input_actions()
 	health = max_health
 	ammo = magazine_size
-	camera = get_node("Head/Camera3D")
-	camera.rotation_degrees.y = 180.0
-	weapon_ray = get_node("Head/Camera3D/WeaponRay")
+	camera.current = true
 	set_physics_process(false)
 	if not OS.has_feature("mobile"):
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
@@ -158,4 +156,4 @@ func take_damage(amount: int) -> void:
 	if mission_controller and mission_controller.has_method("player_health_changed"):
 		mission_controller.player_health_changed(health)
 	if health <= 0:
-		get_tree().reload_current_scene()
+		stop_mission()
