@@ -102,14 +102,17 @@ jobs:
         run: |
           set -euxo pipefail
           mkdir -p build
-          godot --headless --path . --export-debug Android build/Special-Ops-debug.apk
+          godot --headless --verbose --log-file build/godot-export.log --path . --export-debug Android build/Special-Ops-debug.apk
           test -s build/Special-Ops-debug.apk
           file build/Special-Ops-debug.apk
           ls -lh build/Special-Ops-debug.apk
 
       - name: Upload APK
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: Special-Ops-debug
-          path: build/Special-Ops-debug.apk
-          if-no-files-found: error
+          name: Special-Ops-build-diagnostics
+          path: |
+            build/Special-Ops-debug.apk
+            build/godot-export.log
+          if-no-files-found: ignore
