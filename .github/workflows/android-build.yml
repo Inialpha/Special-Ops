@@ -32,6 +32,7 @@ jobs:
 
       - name: Install Godot 4.4.1 and standard export templates
         uses: chickensoft-games/setup-godot@v2
+        id: godot-setup
         with:
           version: 4.4.1
           use-dotnet: false
@@ -42,7 +43,8 @@ jobs:
         shell: bash
         run: |
           mkdir -p "$HOME/.config/godot"
-          cat > "$HOME/.config/godot/editor_settings-4.tres" <<EOF
+          # FIXED: Target file changed from editor_settings-4.tres to editor_settings-4.4.tres
+          cat > "$HOME/.config/godot/editor_settings-4.4.tres" <<EOF
           [gd_resource type="EditorSettings" format=3]
 
           [resource]
@@ -50,6 +52,13 @@ jobs:
           export/android/android_sdk_path = "$ANDROID_SDK_ROOT"
           export/android/java_sdk_path = "$JAVA_HOME"
           EOF
+
+      - name: Establish Godot Template Registry Path
+        shell: bash
+        run: |
+          # Headless exports require templates to reside in the user's localized share cache
+          mkdir -p "$HOME/.local/share/godot/export_templates/4.4.1.stable"
+          cp -r "${{ steps.godot-setup.outputs.templates-path }}"/* "$HOME/.local/share/godot/export_templates/4.4.1.stable/"
 
       - name: Create CI debug keystore
         shell: bash
@@ -68,7 +77,6 @@ jobs:
       - name: Inject Keystore info into Export Config
         shell: bash
         run: |
-          # Use sed to safely overwrite the empty config strings with our created keystore details
           sed -i 's|keystore/debug=""|keystore/debug="'"$GITHUB_WORKSPACE"'/build/debug.keystore"|g' export_presets.cfg
           sed -i 's|keystore/debug_user=""|keystore/debug_user="androiddebugkey"|g' export_presets.cfg
           sed -i 's|keystore/debug_password=""|keystore/debug_password="android"|g' export_presets.cfg
@@ -106,7 +114,6 @@ jobs:
         run: |
           set -euxo pipefail
           mkdir -p build
-          # Removed the broken local environment variables
           godot --headless --verbose --log-file build/godot-export.log --path . --export-debug "Android" build/Special-Ops-debug.apk
           test -s build/Special-Ops-debug.apk
           file build/Special-Ops-debug.apk
@@ -117,8 +124,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Special-Ops-build-diagnostics
-          # Combined paths under a cleaner array declaration pattern
           path: |
             build/Special-Ops-debug.apk
             build/godot-export.log
-          if-no-files-found: error # Changed to error to notify you explicitly if the build failed to generate
+          if-no-files-found: error
