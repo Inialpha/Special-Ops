@@ -1,0 +1,53 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/mobile_controls.gd" id="1"]
+
+[node name="MobileControls" type="CanvasLayer"]
+script = ExtResource("1")
+
+[node name="Controls" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Forward" type="Button" parent="Controls"]
+text = "▲"
+groups = ["mobile_action_buttons"]
+metadata/action = "move_forward"
+[node name="Back" type="Button" parent="Controls"]
+text = "▼"
+groups = ["mobile_action_buttons"]
+metadata/action = "move_back"
+[node name="Left" type="Button" parent="Controls"]
+text = "◀"
+groups = ["mobile_action_buttons"]
+metadata/action = "move_left"
+[node name="Right" type="Button" parent="Controls"]
+text = "▶"
+groups = ["mobile_action_buttons"]
+metadata/action = "move_right"
+[node name="Sprint" type="Button" parent="Controls"]
+text = "SPRINT"
+groups = ["mobile_action_buttons"]
+metadata/action = "sprint"
+[node name="Crouch" type="Button" parent="Controls"]
+text = "CROUCH"
+groups = ["mobile_action_buttons"]
+metadata/action = "crouch"
+[node name="Fire" type="Button" parent="Controls"]
+text = "FIRE"
+groups = ["mobile_action_buttons"]
+metadata/action = "shoot"
+[node name="Reload" type="Button" parent="Controls"]
+text = "RELOAD"
+groups = ["mobile_action_buttons"]
+metadata/action = "reload"
+
+[node name="Pause" type="Button" parent="."]
+text = "Ⅱ"
+visible = false
+focus_mode = 0
