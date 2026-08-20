@@ -9,22 +9,28 @@ class_name Enemy
 @export var attack_cooldown := 1.0
 
 var health := 100
-var target: Node3D
+var target: Player
 var attack_timer := 0.0
 var gravity := 20.0
 
 func _ready() -> void:
 	health = max_health
-	target = get_tree().get_first_node_in_group("player")
+	target = get_tree().get_first_node_in_group("player") as Player
+	set_physics_process(target != null)
 
 func _physics_process(delta: float) -> void:
 	if not target:
-		target = get_tree().get_first_node_in_group("player")
+		target = get_tree().get_first_node_in_group("player") as Player
 		return
+	if not target.mission_active or get_tree().paused:
+		velocity = Vector3.ZERO
+		return
+
 	if not is_on_floor():
 		velocity.y -= gravity * delta
 	else:
 		velocity.y = -0.2
+
 	var distance := global_position.distance_to(target.global_position)
 	if distance <= detection_range:
 		var flat_target := target.global_position
@@ -39,8 +45,7 @@ func _physics_process(delta: float) -> void:
 			attack_timer -= delta
 			if attack_timer <= 0:
 				attack_timer = attack_cooldown
-				if target.has_method("take_damage"):
-					target.take_damage(attack_damage)
+				target.take_damage(attack_damage)
 	else:
 		velocity.x = 0
 		velocity.z = 0

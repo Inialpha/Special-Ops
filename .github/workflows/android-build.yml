@@ -14,18 +14,47 @@ permissions:
 
 jobs:
   build-android:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    env:
+      GODOT_VERSION: 4.4.1
+
     steps:
-      - name: Checkout
+      - name: Checkout exact source
         uses: actions/checkout@v4
 
+      - name: Record source revision
+        run: |
+          set -euxo pipefail
+          mkdir -p build/diagnostics
+          git rev-parse HEAD | tee build/diagnostics/commit-sha.txt
+          git status --short | tee build/diagnostics/git-status.txt
+          git log -1 --oneline | tee build/diagnostics/git-log.txt
+          sed -n '1,360p' .github/workflows/android-build.yml | tee build/diagnostics/workflow-source.txt
+
       - name: Setup Java 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
 
-      - name: Setup Godot
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v4
+
+      - name: Install Android SDK packages required by Godot 4.4
+        shell: bash
+        run: |
+          set -euxo pipefail
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager \
+            "cmdline-tools;latest" \
+            "platform-tools" \
+            "platforms;android-35" \
+            "build-tools;35.0.1" \
+            "cmake;3.10.2.4988404" \
+            "ndk;28.1.13356709"
+          sdkmanager --list_installed | tee build/diagnostics/android-sdk-installed.txt
+
+      - name: Set up Godot 4.4.1 with standard export templates
         uses: chickensoft-games/setup-godot@v2
         with:
           version: 4.4.1
@@ -33,21 +62,136 @@ jobs:
           include-templates: true
           cache: true
 
-      - name: Validate project
-        run: godot --headless --path . --editor --quit
+      - name: Inspect Godot installation
+        run: |
+          set -euxo pipefail
+          godot --version | tee build/diagnostics/godot-version.txt
+          find "$HOME/.local/share/godot/export_templates/$GODOT_VERSION.stable" -maxdepth 3 -type f -print | sort \
+            | tee build/diagnostics/godot-export-templates.txt
 
-      - name: Install Android build template
-        run: godot --headless --path . --editor --quit --install-android-build-template
+      - name: Create CI debug keystore
+        shell: bash
+        run: |
+          set -euxo pipefail
+          mkdir -p build
+          keytool -genkeypair \
+            -keystore "$GITHUB_WORKSPACE/build/debug.keystore" \
+            -storepass android \
+            -keypass android \
+            -alias androiddebugkey \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -dname "CN=Android Debug,O=Android,C=US" -noprompt
+          keytool -list -keystore "$GITHUB_WORKSPACE/build/debug.keystore" -storepass android \
+            | tee build/diagnostics/debug-keystore.txt
 
-      - name: Verify Android build template
-        run: test -d .godot && find .godot -maxdepth 3 -type f -print | head -100
+      - name: Configure Godot 4.4 editor settings
+        shell: bash
+        run: |
+          set -euxo pipefail
+          mkdir -p "$HOME/.config/godot"
+          settings_file="$HOME/.config/godot/editor_settings-4.4.tres"
+          cat > "$settings_file" <<EOF
+          [gd_resource type="EditorSettings" format=3]
 
-      - name: Export Android debug APK
-        run: mkdir -p build && godot --headless --path . --editor --quit-after 10 --export-debug Android build/Special-Ops-debug.apk
+          [resource]
 
-      - name: Upload APK
+          export/android/android_sdk_path = "$ANDROID_SDK_ROOT"
+          export/android/java_sdk_path = "$JAVA_HOME"
+          export/android/debug_keystore = "$GITHUB_WORKSPACE/build/debug.keystore"
+          export/android/debug_keystore_user = "androiddebugkey"
+          export/android/debug_keystore_pass = "android"
+          EOF
+          cat "$settings_file" | tee build/diagnostics/editor-settings-4.4.tres.txt
+
+      - name: Verify Android toolchain and Godot paths
+        shell: bash
+        run: |
+          set -euxo pipefail
+          {
+            echo "ANDROID_HOME=$ANDROID_HOME"
+            echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+            echo "JAVA_HOME=$JAVA_HOME"
+            ls -ld "$ANDROID_SDK_ROOT"
+            ls -ld "$ANDROID_SDK_ROOT/platform-tools"
+            ls -ld "$ANDROID_SDK_ROOT/platforms/android-35"
+            ls -ld "$ANDROID_SDK_ROOT/build-tools/35.0.1"
+            ls -ld "$ANDROID_SDK_ROOT/cmake/3.10.2.4988404"
+            ls -ld "$ANDROID_SDK_ROOT/ndk/28.1.13356709"
+            "$ANDROID_SDK_ROOT/platform-tools/adb" version
+            "$ANDROID_SDK_ROOT/build-tools/35.0.1/aapt" version
+            java -version
+          } 2>&1 | tee build/diagnostics/android-toolchain.txt
+          test -s "$GITHUB_WORKSPACE/build/debug.keystore"
+
+      - name: Inspect project and Android export configuration
+        shell: bash
+        run: |
+          set -euxo pipefail
+          echo '--- project.godot ---' | tee build/diagnostics/project.godot.txt
+          cat project.godot | tee -a build/diagnostics/project.godot.txt
+          echo '--- export_presets.cfg ---' | tee build/diagnostics/export-presets.cfg.txt
+          cat export_presets.cfg | tee -a build/diagnostics/export-presets.cfg.txt
+          echo '--- relevant Godot settings ---' | tee build/diagnostics/godot-settings-search.txt
+          grep -Rni "export/android/" "$HOME/.config/godot" | tee -a build/diagnostics/godot-settings-search.txt || true
+
+      - name: Validate Godot project with verbose logging
+        shell: bash
+        run: |
+          set +e
+          godot --headless --verbose --path . --editor --quit \
+            > build/diagnostics/godot-validation.log 2>&1
+          STATUS=$?
+          cat build/diagnostics/godot-validation.log
+          echo "$STATUS" > build/diagnostics/godot-validation-exit-code.txt
+          exit "$STATUS"
+
+      - name: Export Android debug APK with maximum diagnostics
+        if: always()
+        shell: bash
+        env:
+          GODOT_ANDROID_KEYSTORE_DEBUG_PATH: ${{ github.workspace }}/build/debug.keystore
+          GODOT_ANDROID_KEYSTORE_DEBUG_USER: androiddebugkey
+          GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD: android
+        run: |
+          set +e
+          mkdir -p build
+          godot --headless --verbose \
+            --log-file build/diagnostics/godot-export.log \
+            --path . --export-debug "Android" build/Special-Ops-debug.apk \
+            > build/diagnostics/godot-export-stdout.log 2>&1
+          STATUS=$?
+          cat build/diagnostics/godot-export-stdout.log
+          echo '--- Godot export log ---'
+          cat build/diagnostics/godot-export.log || true
+          echo "$STATUS" > build/diagnostics/godot-export-exit-code.txt
+          if [ -f build/Special-Ops-debug.apk ]; then
+            file build/Special-Ops-debug.apk | tee build/diagnostics/apk-file.txt
+            ls -lh build/Special-Ops-debug.apk | tee build/diagnostics/apk-size.txt
+          fi
+          exit "$STATUS"
+
+      - name: Search diagnostics for configuration errors
+        if: always()
+        run: |
+          set +e
+          grep -RniE 'ERROR|WARNING|Android|export|SDK|JDK|Java|keystore|template|configuration|preset|NDK|CMake' \
+            build/diagnostics > build/diagnostics/error-search.txt || true
+          cat build/diagnostics/error-search.txt || true
+
+      - name: Upload complete diagnostics
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: Special-Ops-debug
+          name: Special-Ops-godot-diagnostics-${{ github.run_id }}
+          path: build/diagnostics/
+          if-no-files-found: warn
+
+      - name: Upload APK
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Special-Ops-debug-apk-${{ github.run_id }}
           path: build/Special-Ops-debug.apk
           if-no-files-found: error

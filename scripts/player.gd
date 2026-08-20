@@ -7,6 +7,7 @@ class_name Player
 @export var acceleration := 18.0
 @export var gravity := 20.0
 @export var mouse_sensitivity := 0.0025
+@export var touch_sensitivity := 0.0035
 @export var max_health := 100
 @export var magazine_size := 30
 @export var reserve_ammo := 120
@@ -17,6 +18,7 @@ var ammo := 30
 var is_reloading := false
 var is_crouching := false
 var can_fire := true
+var mission_active := false
 var pitch := -0.12
 var mission_controller: Node
 var camera: Camera3D
@@ -27,10 +29,11 @@ func _ready() -> void:
 	health = max_health
 	ammo = magazine_size
 	camera = get_node("Head/Camera3D")
-	camera.rotation_degrees.y = 0.0
+	camera.rotation_degrees.y = 180.0
 	weapon_ray = get_node("Head/Camera3D/WeaponRay")
+	set_physics_process(false)
 	if not OS.has_feature("mobile"):
-		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 func _ensure_input_actions() -> void:
 	var actions := {
@@ -57,15 +60,46 @@ func _ensure_input_actions() -> void:
 		mouse_event.button_index = MOUSE_BUTTON_LEFT
 		InputMap.action_add_event("shoot", mouse_event)
 
+func start_mission() -> void:
+	mission_active = true
+	set_physics_process(true)
+	if not OS.has_feature("mobile"):
+		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+
+func stop_mission() -> void:
+	mission_active = false
+	set_physics_process(false)
+	velocity = Vector3.ZERO
+	if not OS.has_feature("mobile"):
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+
+func toggle_pause() -> void:
+	if not mission_active:
+		return
+	get_tree().paused = not get_tree().paused
+	if not OS.has_feature("mobile"):
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if get_tree().paused else Input.MOUSE_MODE_CAPTURED
+
+func apply_look(delta: Vector2) -> void:
+	if not mission_active or get_tree().paused:
+		return
+	rotate_y(-delta.x * touch_sensitivity)
+	pitch = clamp(pitch - delta.y * touch_sensitivity, -1.2, 1.0)
+	camera.rotation.x = pitch
+
 func _unhandled_input(event: InputEvent) -> void:
-	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
+	if not mission_active or get_tree().paused:
+		return
+	if event is InputEventMouseMotion and not OS.has_feature("mobile") and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		rotate_y(-event.relative.x * mouse_sensitivity)
 		pitch = clamp(pitch - event.relative.y * mouse_sensitivity, -1.2, 1.0)
 		camera.rotation.x = pitch
-	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
-		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED else Input.MOUSE_MODE_CAPTURED
+	elif event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
+		toggle_pause()
 
 func _physics_process(delta: float) -> void:
+	if not mission_active or get_tree().paused:
+		return
 	var input_vec := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 	var direction := (transform.basis * Vector3(input_vec.x, 0, input_vec.y)).normalized()
 	is_crouching = Input.is_action_pressed("crouch")
@@ -81,12 +115,14 @@ func _physics_process(delta: float) -> void:
 	else:
 		velocity.y = -0.2
 	move_and_slide()
-	if Input.is_action_just_pressed("shoot") and can_fire and not is_reloading:
+	if Input.is_action_just_pressed("shoot"):
 		shoot()
-	if Input.is_action_just_pressed("reload") and not is_reloading and ammo < magazine_size and reserve_ammo > 0:
+	if Input.is_action_just_pressed("reload"):
 		reload()
 
 func shoot() -> void:
+	if not mission_active or get_tree().paused or not can_fire or is_reloading:
+		return
 	if ammo <= 0:
 		reload()
 		return
@@ -103,8 +139,12 @@ func shoot() -> void:
 	can_fire = true
 
 func reload() -> void:
+	if not mission_active or get_tree().paused or is_reloading or ammo >= magazine_size or reserve_ammo <= 0:
+		return
 	is_reloading = true
 	await get_tree().create_timer(1.1).timeout
+	if not is_inside_tree():
+		return
 	var needed := magazine_size - ammo
 	var loaded: int = min(needed, reserve_ammo)
 	ammo += loaded
@@ -112,6 +152,8 @@ func reload() -> void:
 	is_reloading = false
 
 func take_damage(amount: int) -> void:
+	if not mission_active or get_tree().paused:
+		return
 	health -= amount
 	if mission_controller and mission_controller.has_method("player_health_changed"):
 		mission_controller.player_health_changed(health)
