@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - development
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
@@ -35,6 +38,9 @@ jobs:
 
       - name: Install Android build template
         run: godot --headless --path . --editor --quit --install-android-build-template
+
+      - name: Verify Android build template
+        run: test -d .godot && find .godot -maxdepth 3 -type f -print | head -100
 
       - name: Export Android debug APK
         run: mkdir -p build && godot --headless --path . --editor --quit-after 10 --export-debug Android build/Special-Ops-debug.apk
