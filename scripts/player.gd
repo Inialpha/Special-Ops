@@ -27,6 +27,7 @@ func _ready() -> void:
 	health = max_health
 	ammo = magazine_size
 	camera = get_node("Head/Camera3D")
+	camera.rotation_degrees.y = 0.0
 	weapon_ray = get_node("Head/Camera3D/WeaponRay")
 	if not OS.has_feature("mobile"):
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
@@ -45,8 +46,7 @@ func _ensure_input_actions() -> void:
 	for action in actions:
 		if not InputMap.has_action(action):
 			InputMap.add_action(action)
-		var existing := InputMap.action_get_events(action)
-		if existing.is_empty():
+		if InputMap.action_get_events(action).is_empty():
 			var event := InputEventKey.new()
 			event.physical_keycode = actions[action]
 			InputMap.action_add_event(action, event)
