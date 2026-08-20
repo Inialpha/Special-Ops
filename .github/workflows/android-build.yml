@@ -3,7 +3,7 @@ name: Build Special Ops Android
 on:
   push:
     branches:
-      - ci/android-build
+      - development
   workflow_dispatch:
 
 permissions:
