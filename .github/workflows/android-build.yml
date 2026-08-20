@@ -32,7 +32,6 @@ jobs:
 
       - name: Install Godot 4.4.1 and standard export templates
         uses: chickensoft-games/setup-godot@v2
-        id: godot-setup
         with:
           version: 4.4.1
           use-dotnet: false
@@ -43,7 +42,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p "$HOME/.config/godot"
-          # FIXED: Target file changed from editor_settings-4.tres to editor_settings-4.4.tres
+          # Patches the SDK references explicitly for the 4.4 stable branch
           cat > "$HOME/.config/godot/editor_settings-4.4.tres" <<EOF
           [gd_resource type="EditorSettings" format=3]
 
@@ -52,13 +51,6 @@ jobs:
           export/android/android_sdk_path = "$ANDROID_SDK_ROOT"
           export/android/java_sdk_path = "$JAVA_HOME"
           EOF
-
-      - name: Establish Godot Template Registry Path
-        shell: bash
-        run: |
-          # Headless exports require templates to reside in the user's localized share cache
-          mkdir -p "$HOME/.local/share/godot/export_templates/4.4.1.stable"
-          cp -r "${{ steps.godot-setup.outputs.templates-path }}"/* "$HOME/.local/share/godot/export_templates/4.4.1.stable/"
 
       - name: Create CI debug keystore
         shell: bash
