@@ -1,0 +1,57 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/mission_briefing.gd" id="1"]
+
+[node name="MissionBriefing" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.015, 0.02, 0.018, 0.96)
+mouse_filter = 2
+
+[node name="Center" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Panel" type="PanelContainer" parent="Center"]
+custom_minimum_size = Vector2(560, 0)
+
+[node name="VBox" type="VBoxContainer" parent="Center/Panel"]
+theme_override_constants/separation = 16
+
+[node name="Title" type="Label" parent="Center/Panel/VBox"]
+text = "SPECIAL OPS"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 42
+
+[node name="Mission" type="Label" parent="Center/Panel/VBox"]
+text = "MISSION 01  //  THE DROP"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 24
+
+[node name="Objective" type="Label" parent="Center/Panel/VBox"]
+text = "OBJECTIVE\nEliminate all hostiles, then reach extraction."
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 20
+
+[node name="StartMission" type="Button" parent="Center/Panel/VBox"]
+custom_minimum_size = Vector2(0, 70)
+text = "START MISSION"
+theme_override_font_sizes/font_size = 24
+focus_mode = 0
