@@ -23,11 +23,39 @@ var camera: Camera3D
 var weapon_ray: RayCast3D
 
 func _ready() -> void:
+	_ensure_input_actions()
 	health = max_health
 	ammo = magazine_size
 	camera = get_node("Head/Camera3D")
 	weapon_ray = get_node("Head/Camera3D/WeaponRay")
-	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	if not OS.has_feature("mobile"):
+		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+
+func _ensure_input_actions() -> void:
+	var actions := {
+		"move_forward": KEY_W,
+		"move_back": KEY_S,
+		"move_left": KEY_A,
+		"move_right": KEY_D,
+		"sprint": KEY_SHIFT,
+		"crouch": KEY_C,
+		"reload": KEY_R,
+		"interact": KEY_E
+	}
+	for action in actions:
+		if not InputMap.has_action(action):
+			InputMap.add_action(action)
+		var existing := InputMap.action_get_events(action)
+		if existing.is_empty():
+			var event := InputEventKey.new()
+			event.physical_keycode = actions[action]
+			InputMap.action_add_event(action, event)
+	if not InputMap.has_action("shoot"):
+		InputMap.add_action("shoot")
+	if InputMap.action_get_events("shoot").is_empty():
+		var mouse_event := InputEventMouseButton.new()
+		mouse_event.button_index = MOUSE_BUTTON_LEFT
+		InputMap.action_add_event("shoot", mouse_event)
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
