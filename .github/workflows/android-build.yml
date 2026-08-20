@@ -14,21 +14,29 @@ permissions:
 
 jobs:
   build-android:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Setup Java 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v4
-        with:
-          packages: 'platform-tools build-tools;34.0.0 platforms;android-34 cmdline-tools;latest cmake;3.10.2.4988404 ndk;23.2.8568313'
+
+      - name: Install Android SDK packages
+        shell: bash
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager \
+            "platform-tools" \
+            "platforms;android-34" \
+            "build-tools;34.0.0"
 
       - name: Install Godot 4.4.1 and standard export templates
         uses: chickensoft-games/setup-godot@v2
@@ -38,12 +46,14 @@ jobs:
           include-templates: true
           cache: true
 
-      - name: Configure Godot Android SDK and Java paths
+      - name: Configure Godot 4.4 editor settings
         shell: bash
         run: |
+          set -euo pipefail
           mkdir -p "$HOME/.config/godot"
-          # Patches the SDK references explicitly for the 4.4 stable branch
-          cat > "$HOME/.config/godot/editor_settings-4.4.tres" <<EOF
+          settings_file="$HOME/.config/godot/editor_settings-4.4.tres"
+
+          cat > "$settings_file" <<EOF
           [gd_resource type="EditorSettings" format=3]
 
           [resource]
@@ -52,9 +62,13 @@ jobs:
           export/android/java_sdk_path = "$JAVA_HOME"
           EOF
 
+          echo "Godot editor settings: $settings_file"
+          cat "$settings_file"
+
       - name: Create CI debug keystore
         shell: bash
         run: |
+          set -euo pipefail
           mkdir -p build
           keytool -genkeypair \
             -keystore "$GITHUB_WORKSPACE/build/debug.keystore" \
@@ -66,22 +80,13 @@ jobs:
             -validity 10000 \
             -dname "CN=Android Debug,O=Android,C=US"
 
-      - name: Inject Keystore info into Export Config
-        shell: bash
-        run: |
-          sed -i 's|keystore/debug=""|keystore/debug="'"$GITHUB_WORKSPACE"'/build/debug.keystore"|g' export_presets.cfg
-          sed -i 's|keystore/debug_user=""|keystore/debug_user="androiddebugkey"|g' export_presets.cfg
-          sed -i 's|keystore/debug_password=""|keystore/debug_password="android"|g' export_presets.cfg
-
       - name: Verify Android toolchain
         shell: bash
         run: |
-          set -e
+          set -euo pipefail
           test -x "$ANDROID_SDK_ROOT/platform-tools/adb"
           test -x "$ANDROID_SDK_ROOT/build-tools/34.0.0/aapt"
           test -d "$ANDROID_SDK_ROOT/platforms/android-34"
-          test -d "$ANDROID_SDK_ROOT/cmake/3.10.2.4988404"
-          test -d "$ANDROID_SDK_ROOT/ndk/23.2.8568313"
           test -n "$JAVA_HOME"
           test -f "$GITHUB_WORKSPACE/build/debug.keystore"
           echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
@@ -90,28 +95,41 @@ jobs:
           "$ANDROID_SDK_ROOT/build-tools/34.0.0/aapt" version
           java -version
 
-      - name: Validate project & Import assets
+      - name: Validate Godot project
         run: godot --headless --path . --editor --quit
 
       - name: Inspect Android export configuration
         shell: bash
         run: |
-          echo '--- Android export preset ---'
-          sed -n '/\[preset.0\]/,$p' export_presets.cfg
+          set -euo pipefail
           echo '--- Godot version ---'
           godot --version
+          echo '--- Export preset ---'
+          cat export_presets.cfg
+          echo '--- Relevant Godot settings ---'
+          grep -R "export/android/" "$HOME/.config/godot" || true
+          echo '--- Godot export templates ---'
+          find "$HOME/.local/share/godot/export_templates/4.4.1.stable" -maxdepth 2 -type f -print | sort | head -200
 
       - name: Export Android debug APK
+        id: export
         shell: bash
+        env:
+          GODOT_ANDROID_KEYSTORE_DEBUG_PATH: ${{ github.workspace }}/build/debug.keystore
+          GODOT_ANDROID_KEYSTORE_DEBUG_USER: androiddebugkey
+          GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD: android
         run: |
           set -euxo pipefail
           mkdir -p build
-          godot --headless --verbose --log-file build/godot-export.log --path . --export-debug "Android" build/Special-Ops-debug.apk
+          godot --headless --verbose --log-file build/godot-export.log \
+            --path . \
+            --export-debug "Android" \
+            build/Special-Ops-debug.apk
           test -s build/Special-Ops-debug.apk
           file build/Special-Ops-debug.apk
           ls -lh build/Special-Ops-debug.apk
 
-      - name: Upload APK
+      - name: Upload build diagnostics
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -119,4 +137,5 @@ jobs:
           path: |
             build/Special-Ops-debug.apk
             build/godot-export.log
-          if-no-files-found: error
+            $HOME/.config/godot/editor_settings-4.4.tres
+          if-no-files-found: warn
