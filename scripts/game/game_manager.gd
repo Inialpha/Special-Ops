@@ -24,6 +24,7 @@ func _on_start_mission_requested() -> void:
 
 func start_level_1() -> void:
 	_clear_level()
+	await get_tree().process_frame
 	current_level = LEVEL_1_SCENE.instantiate() as Node3D
 	level_container.add_child(current_level)
 	await get_tree().process_frame
