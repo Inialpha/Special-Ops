@@ -1,9 +1,9 @@
-; Special Ops — Level 1 prototype
-; Godot 4.x
+; Special Ops — scalable game bootstrap
+; Godot 4.4
 
 [application]
 config/name="Special Ops"
-run/main_scene="res://scenes/level_1.tscn"
+run/main_scene="res://scenes/game/game.tscn"
 config/features=PackedStringArray("4.4", "GL Compatibility")
 
 [display]
@@ -12,6 +12,8 @@ window/size/viewport_height=720
 window/size/window_width_override=1280
 window/size/window_height_override=720
 window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+window/handheld/orientation=4
 
 [rendering]
 renderer/rendering_method="gl_compatibility"
