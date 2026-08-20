@@ -1,0 +1,68 @@
+name: Build Special Ops Android
+
+on:
+  push:
+    branches:
+      - main
+      - 'prototype/**'
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  android:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK packages
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+
+      - name: Download Godot 4.4.1
+        run: |
+          mkdir -p "$HOME/godot"
+          curl -L --fail --retry 3 -o "$HOME/godot/godot.zip" \
+            https://github.com/godotengine/godot/releases/download/4.4.1-stable/Godot_v4.4.1-stable_linux.x86_64.zip
+          unzip -q "$HOME/godot/godot.zip" -d "$HOME/godot"
+          mv "$HOME/godot/Godot_v4.4.1-stable_linux.x86_64" "$HOME/godot/godot"
+          chmod +x "$HOME/godot/godot"
+
+      - name: Install Godot Android export templates
+        run: |
+          mkdir -p "$HOME/.local/share/godot/export_templates/4.4.1.stable"
+          curl -L --fail --retry 3 -o /tmp/templates.tpz \
+            https://github.com/godotengine/godot/releases/download/4.4.1-stable/Godot_v4.4.1-stable_export_templates.tpz
+          unzip -q /tmp/templates.tpz -d /tmp/godot-templates
+          cp -R /tmp/godot-templates/templates/. "$HOME/.local/share/godot/export_templates/4.4.1.stable/"
+
+      - name: Validate Godot project
+        run: |
+          "$HOME/godot/godot" --headless --path . --editor --quit
+
+      - name: Export Android debug APK
+        run: |
+          mkdir -p build
+          "$HOME/godot/godot" --headless --path . --editor --export-debug Android build/Special-Ops-debug.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: special-ops-debug-apk
+          path: build/Special-Ops-debug.apk
+          if-no-files-found: error
