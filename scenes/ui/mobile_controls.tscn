@@ -14,47 +14,79 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 
-[node name="Forward" type="Button" parent="Controls"]
+[node name="Forward" type="Button" parent="Controls" groups=["mobile_action_buttons"]]
+layout_mode = 0
+offset_left = 110.0
+offset_top = -210.0
+offset_right = 210.0
+offset_bottom = -150.0
 text = "▲"
-groups = ["mobile_action_buttons"]
 metadata/action = "move_forward"
 
-[node name="Back" type="Button" parent="Controls"]
+[node name="Back" type="Button" parent="Controls" groups=["mobile_action_buttons"]]
+layout_mode = 0
+offset_left = 110.0
+offset_top = -75.0
+offset_right = 210.0
+offset_bottom = -15.0
 text = "▼"
-groups = ["mobile_action_buttons"]
 metadata/action = "move_back"
 
-[node name="Left" type="Button" parent="Controls"]
+[node name="Left" type="Button" parent="Controls" groups=["mobile_action_buttons"]]
+layout_mode = 0
+offset_left = 15.0
+offset_top = -145.0
+offset_right = 105.0
+offset_bottom = -85.0
 text = "◀"
-groups = ["mobile_action_buttons"]
 metadata/action = "move_left"
 
-[node name="Right" type="Button" parent="Controls"]
+[node name="Right" type="Button" parent="Controls" groups=["mobile_action_buttons"]]
+layout_mode = 0
+offset_left = 215.0
+offset_top = -145.0
+offset_right = 305.0
+offset_bottom = -85.0
 text = "▶"
-groups = ["mobile_action_buttons"]
 metadata/action = "move_right"
 
-[node name="Sprint" type="Button" parent="Controls"]
+[node name="Sprint" type="Button" parent="Controls" groups=["mobile_action_buttons"]]
+layout_mode = 0
+offset_left = 15.0
+offset_top = -275.0
+offset_right = 115.0
+offset_bottom = -220.0
 text = "SPRINT"
-groups = ["mobile_action_buttons"]
 metadata/action = "sprint"
 
-[node name="Crouch" type="Button" parent="Controls"]
+[node name="Crouch" type="Button" parent="Controls" groups=["mobile_action_buttons"]]
+layout_mode = 0
+offset_left = 225.0
+offset_top = -275.0
+offset_right = 335.0
+offset_bottom = -220.0
 text = "CROUCH"
-groups = ["mobile_action_buttons"]
 metadata/action = "crouch"
 
-[node name="Fire" type="Button" parent="Controls"]
+[node name="Fire" type="Button" parent="Controls" groups=["mobile_action_buttons"]]
+layout_mode = 0
+offset_left = -215.0
+offset_top = -205.0
+offset_right = -25.0
+offset_bottom = -25.0
 text = "FIRE"
-groups = ["mobile_action_buttons"]
 metadata/action = "shoot"
 
-[node name="Reload" type="Button" parent="Controls"]
+[node name="Reload" type="Button" parent="Controls" groups=["mobile_action_buttons"]]
+layout_mode = 0
+offset_left = -345.0
+offset_top = -115.0
+offset_right = -225.0
+offset_bottom = -55.0
 text = "RELOAD"
-groups = ["mobile_action_buttons"]
 metadata/action = "reload"
 
 [node name="Pause" type="Button" parent="."]
-text = "Ⅱ"
 visible = false
 focus_mode = 0
+text = "Ⅱ"
