@@ -77,11 +77,11 @@ func _set_control_rect(node_name: String, anchor_x: float, anchor_y: float, left
 	node.offset_bottom = bottom
 
 func _press_action(action: String) -> void:
-	if gameplay_visible and not action.is_empty():
+	if gameplay_visible and not action.is_empty() and InputMap.has_action(action):
 		Input.action_press(action)
 
 func _release_action(action: String) -> void:
-	if not action.is_empty():
+	if not action.is_empty() and InputMap.has_action(action):
 		Input.action_release(action)
 
 func _on_shoot_down() -> void:
@@ -118,4 +118,5 @@ func _touch_hits_control(position: Vector2) -> bool:
 
 func _release_all_actions() -> void:
 	for action in ["move_forward", "move_back", "move_left", "move_right", "sprint", "crouch"]:
-		Input.action_release(action)
+		if InputMap.has_action(action):
+			Input.action_release(action)
