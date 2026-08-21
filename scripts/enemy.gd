@@ -14,6 +14,10 @@ var health := 100
 var target: Player
 var attack_timer := 0.0
 var gravity := 20.0
+var defeated_state := false
+var hit_tween: Tween
+@onready var mesh: MeshInstance3D = $Mesh
+@onready var collision: CollisionShape3D = $Collision
 
 func _ready() -> void:
 	add_to_group("mission_enemy")
@@ -22,6 +26,8 @@ func _ready() -> void:
 	set_physics_process(target != null)
 
 func _physics_process(delta: float) -> void:
+	if defeated_state:
+		return
 	if not target or not is_instance_valid(target):
 		target = get_tree().get_first_node_in_group("player") as Player
 		return
@@ -54,7 +60,31 @@ func _physics_process(delta: float) -> void:
 	move_and_slide()
 
 func take_damage(amount: int) -> void:
+	if defeated_state:
+		return
 	health -= amount
+	_play_hit_feedback()
 	if health <= 0:
-		defeated.emit()
-		queue_free()
+		_die()
+
+func _play_hit_feedback() -> void:
+	if hit_tween and hit_tween.is_valid():
+		hit_tween.kill()
+	var original_scale := scale
+	hit_tween = create_tween()
+	hit_tween.tween_property(self, "scale", original_scale * 1.08, 0.04)
+	hit_tween.tween_property(self, "scale", original_scale, 0.08)
+
+func _die() -> void:
+	defeated_state = true
+	velocity = Vector3.ZERO
+	set_physics_process(false)
+	collision.set_deferred("disabled", true)
+	defeated.emit()
+	var death_tween := create_tween()
+	death_tween.set_parallel(true)
+	death_tween.tween_property(self, "rotation_degrees:x", -85.0, 0.28).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	death_tween.tween_property(self, "position:y", max(0.2, position.y - 0.65), 0.28).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	death_tween.set_parallel(false)
+	death_tween.tween_interval(0.35)
+	death_tween.tween_callback(queue_free)
