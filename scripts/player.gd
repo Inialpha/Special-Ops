@@ -16,13 +16,17 @@ class_name Player
 var health := 100
 var ammo := 30
 var is_reloading := false
-var is_crouching := false
 var can_fire := true
+var is_crouching := false
 var mission_active := false
 var pitch := -0.12
 var mission_controller: Node
+var weapon_recoil_tween: Tween
+var muzzle_flash_tween: Tween
 @onready var camera: Camera3D = $Head/Camera3D
 @onready var weapon_ray: RayCast3D = $Head/Camera3D/WeaponRay
+@onready var weapon: MeshInstance3D = $Head/Camera3D/Weapon
+@onready var muzzle_flash: OmniLight3D = $Head/Camera3D/MuzzleFlash
 
 func _ready() -> void:
 	_ensure_input_actions()
@@ -30,6 +34,7 @@ func _ready() -> void:
 	ammo = magazine_size
 	camera.current = true
 	set_physics_process(false)
+	muzzle_flash.visible = false
 	if not OS.has_feature("mobile"):
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
@@ -124,17 +129,45 @@ func shoot() -> void:
 	if ammo <= 0:
 		reload()
 		return
+
 	ammo -= 1
 	can_fire = false
+	_play_shot_animation()
+
 	weapon_ray.force_raycast_update()
-	if weapon_ray.is_colliding():
-		var target := weapon_ray.get_collider()
-		if target and target.has_method("take_damage"):
-			target.take_damage(25)
+	var target: Object = weapon_ray.get_collider() if weapon_ray.is_colliding() else null
+
+	if target and target.has_method("take_damage"):
+		target.take_damage(25)
+	else:
+		var query := PhysicsRayQueryParameters3D.create(camera.global_position, camera.global_position + (-camera.global_transform.basis.z * 100.0))
+		query.collision_mask = 1
+		query.exclude = [self]
+		var hit := get_world_3d().direct_space_state.intersect_ray(query)
+		if hit and hit.get("collider") and hit.collider.has_method("take_damage"):
+			hit.collider.take_damage(25)
+
 	if mission_controller and mission_controller.has_method("player_fired"):
 		mission_controller.player_fired()
+
 	await get_tree().create_timer(fire_rate).timeout
-	can_fire = true
+	if is_inside_tree():
+		can_fire = true
+
+func _play_shot_animation() -> void:
+	muzzle_flash.visible = true
+	muzzle_flash.light_energy = 5.0
+	if muzzle_flash_tween and muzzle_flash_tween.is_valid():
+		muzzle_flash_tween.kill()
+	muzzle_flash_tween = create_tween()
+	muzzle_flash_tween.tween_property(muzzle_flash, "light_energy", 0.0, 0.07)
+	muzzle_flash_tween.tween_callback(func(): muzzle_flash.visible = false)
+
+	if weapon_recoil_tween and weapon_recoil_tween.is_valid():
+		weapon_recoil_tween.kill()
+	weapon_recoil_tween = create_tween()
+	weapon_recoil_tween.tween_property(weapon, "position", Vector3(0.55, -0.4, -0.78), 0.035)
+	weapon_recoil_tween.tween_property(weapon, "position", Vector3(0.55, -0.4, -0.9), 0.09)
 
 func reload() -> void:
 	if not mission_active or get_tree().paused or is_reloading or ammo >= magazine_size or reserve_ammo <= 0:
