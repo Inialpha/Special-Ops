@@ -1,0 +1,18 @@
+# Godot 4 editor/import cache
+.godot/
+
+# Godot 3.x import cache (kept for compatibility if older assets are used)
+.import/
+
+# Exported/build artifacts
+export/
+build/
+
+# Temporary and generated files
+*.tmp
+*.temp
+*.log
+
+# OS-generated files
+.DS_Store
+Thumbs.db
