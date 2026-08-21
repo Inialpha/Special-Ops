@@ -82,3 +82,10 @@ func _play_hit_feedback() -> void:
 	hit_tween.tween_property(self, "scale", original_scale, 0.08)
 
 func _die() -> void:
+	if defeated_state:
+		return
+	defeated_state = true
+	velocity = Vector3.ZERO
+	set_physics_process(false)
+	defeated.emit()
+	queue_free()
