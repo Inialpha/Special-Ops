@@ -24,7 +24,9 @@ func _ready() -> void:
 	health = max_health
 	target = get_tree().get_first_node_in_group("player") as Player
 	set_physics_process(target != null)
-	print("[SPECIAL OPS] Enemy ready: ", name, " position=", global_position, " health=", health, " collision_layer=", collision.collision_layer if collision else "N/A", " collision_mask=", collision.collision_mask if collision else "N/A")
+	var body_collision_layer := collision.get_parent().collision_layer if collision and collision.get_parent() is CollisionObject3D else "N/A"
+	var body_collision_mask := collision.get_parent().collision_mask if collision and collision.get_parent() is CollisionObject3D else "N/A"
+	print("[SPECIAL OPS] Enemy ready: ", name, " position=", global_position, " health=", health, " body_collision_layer=", body_collision_layer, " body_collision_mask=", body_collision_mask)
 
 func _physics_process(delta: float) -> void:
 	if defeated_state: return
