@@ -24,21 +24,18 @@ func _ready() -> void:
 	health = max_health
 	target = get_tree().get_first_node_in_group("player") as Player
 	set_physics_process(target != null)
+	print("[SPECIAL OPS] Enemy ready: ", name, " position=", global_position, " health=", health, " collision_layer=", collision.collision_layer if collision else "N/A", " collision_mask=", collision.collision_mask if collision else "N/A")
 
 func _physics_process(delta: float) -> void:
-	if defeated_state:
-		return
+	if defeated_state: return
 	if not target or not is_instance_valid(target):
 		target = get_tree().get_first_node_in_group("player") as Player
 		return
 	if not target.mission_active or get_tree().paused:
 		velocity = Vector3.ZERO
 		return
-	if not is_on_floor():
-		velocity.y -= gravity * delta
-	else:
-		velocity.y = -0.2
-
+	if not is_on_floor(): velocity.y -= gravity * delta
+	else: velocity.y = -0.2
 	var distance := global_position.distance_to(target.global_position)
 	if distance <= detection_range:
 		var flat_target := target.global_position
@@ -61,15 +58,18 @@ func _physics_process(delta: float) -> void:
 
 func take_damage(amount: int) -> void:
 	if defeated_state:
+		print("[SPECIAL OPS] Ignored damage: ", name, " is already defeated.")
 		return
+	print("[SPECIAL OPS] ENEMY HIT: ", name, " position=", global_position, " health_before=", health, " damage=", amount)
 	health -= amount
+	print("[SPECIAL OPS] ENEMY HEALTH AFTER HIT: ", name, " health=", health)
 	_play_hit_feedback()
 	if health <= 0:
+		print("[SPECIAL OPS] ENEMY DEFEATED: ", name, " position=", global_position)
 		_die()
 
 func _play_hit_feedback() -> void:
-	if hit_tween and hit_tween.is_valid():
-		hit_tween.kill()
+	if hit_tween and hit_tween.is_valid(): hit_tween.kill()
 	var original_scale := scale
 	hit_tween = create_tween()
 	hit_tween.tween_property(self, "scale", original_scale * 1.08, 0.04)
