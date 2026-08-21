@@ -14,22 +14,47 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 
-[node name="Left" type="TouchScreenButton" parent="Controls"]
-layout_mode = 0
-position = Vector2(80, 560)
-size = Vector2(100, 100)
+[node name="Forward" type="Button" parent="Controls"]
+text = "▲"
+groups = ["mobile_action_buttons"]
+metadata/action = "move_forward"
 
-[node name="Right" type="TouchScreenButton" parent="Controls"]
-layout_mode = 0
-position = Vector2(220, 560)
-size = Vector2(100, 100)
+[node name="Back" type="Button" parent="Controls"]
+text = "▼"
+groups = ["mobile_action_buttons"]
+metadata/action = "move_back"
 
-[node name="Jump" type="TouchScreenButton" parent="Controls"]
-layout_mode = 0
-position = Vector2(1080, 560)
-size = Vector2(100, 100)
+[node name="Left" type="Button" parent="Controls"]
+text = "◀"
+groups = ["mobile_action_buttons"]
+metadata/action = "move_left"
 
-[node name="Fire" type="TouchScreenButton" parent="Controls"]
-layout_mode = 0
-position = Vector2(950, 560)
-size = Vector2(100, 100)
+[node name="Right" type="Button" parent="Controls"]
+text = "▶"
+groups = ["mobile_action_buttons"]
+metadata/action = "move_right"
+
+[node name="Sprint" type="Button" parent="Controls"]
+text = "SPRINT"
+groups = ["mobile_action_buttons"]
+metadata/action = "sprint"
+
+[node name="Crouch" type="Button" parent="Controls"]
+text = "CROUCH"
+groups = ["mobile_action_buttons"]
+metadata/action = "crouch"
+
+[node name="Fire" type="Button" parent="Controls"]
+text = "FIRE"
+groups = ["mobile_action_buttons"]
+metadata/action = "shoot"
+
+[node name="Reload" type="Button" parent="Controls"]
+text = "RELOAD"
+groups = ["mobile_action_buttons"]
+metadata/action = "reload"
+
+[node name="Pause" type="Button" parent="."]
+text = "Ⅱ"
+visible = false
+focus_mode = 0
