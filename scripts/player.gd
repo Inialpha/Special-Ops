@@ -44,8 +44,9 @@ func _ready() -> void:
 	weapon.rotation_degrees = Vector3.ZERO
 	weapon.scale = Vector3(0.8, 0.8, 0.8)
 	_create_shot_flash()
-	if not OS.has_feature("mobile"):
-		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	if not OS.has_feature("mobile"): Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	print("[SPECIAL OPS] Player ready. Player position: ", global_position)
+	print("[SPECIAL OPS] WeaponRay collision mask: ", weapon_ray.collision_mask)
 
 func _create_shot_flash() -> void:
 	shot_flash = MeshInstance3D.new()
@@ -83,6 +84,7 @@ func start_mission() -> void:
 	mission_active = true
 	set_physics_process(true)
 	if not OS.has_feature("mobile"): Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	print("[SPECIAL OPS] Mission started. Player position: ", global_position)
 
 func stop_mission() -> void:
 	mission_active = false
@@ -127,6 +129,15 @@ func _physics_process(delta: float) -> void:
 	if Input.is_action_just_pressed("shoot"): shoot()
 	if Input.is_action_just_pressed("reload"): reload()
 
+func _find_damage_receiver(collider: Object) -> Node:
+	if collider == null: return null
+	var node := collider as Node
+	while node:
+		if node.has_method("take_damage"):
+			return node
+		node = node.get_parent()
+	return null
+
 func shoot() -> void:
 	if not mission_active or get_tree().paused or not can_fire or is_reloading: return
 	if ammo <= 0:
@@ -135,17 +146,44 @@ func shoot() -> void:
 	ammo -= 1
 	can_fire = false
 	_play_shot_animation()
+
+	var origin := camera.global_position
+	var direction := -camera.global_transform.basis.z
+	var ray_end := origin + direction * 100.0
 	weapon_ray.force_raycast_update()
 	var target: Object = weapon_ray.get_collider() if weapon_ray.is_colliding() else null
-	if target and target.has_method("take_damage"):
-		target.take_damage(100)
+	var hit_position := ray_end
+	var receiver: Node = _find_damage_receiver(target)
+
+	print("[SPECIAL OPS] SHOT fired. Camera position=", origin, " direction=", direction)
+	if target:
+		print("[SPECIAL OPS] WeaponRay hit: ", target, " type=", target.get_class(), " position=", target.global_position if target is Node3D else "N/A")
 	else:
-		var query := PhysicsRayQueryParameters3D.create(camera.global_position, camera.global_position + (-camera.global_transform.basis.z * 100.0))
+		print("[SPECIAL OPS] WeaponRay hit: NOTHING")
+
+	if receiver:
+		hit_position = (target as Node3D).global_position if target is Node3D else hit_position
+		print("[SPECIAL OPS] DAMAGE RECEIVER FOUND: ", receiver.name, " at ", receiver.global_position if receiver is Node3D else "N/A", " -- applying 100 damage")
+		receiver.take_damage(100)
+	else:
+		var query := PhysicsRayQueryParameters3D.create(origin, ray_end)
 		query.collision_mask = 1
 		query.exclude = [self]
 		var hit := get_world_3d().direct_space_state.intersect_ray(query)
-		if hit and hit.get("collider") and hit.collider.has_method("take_damage"):
-			hit.collider.take_damage(100)
+		if hit and hit.get("collider"):
+			var hit_collider: Object = hit.collider
+			hit_position = hit.get("position", ray_end)
+			var hit_receiver := _find_damage_receiver(hit_collider)
+			print("[SPECIAL OPS] Direct ray hit: ", hit_collider, " at position=", hit_position)
+			if hit_receiver:
+				print("[SPECIAL OPS] DIRECT DAMAGE RECEIVER FOUND: ", hit_receiver.name, " at ", hit_receiver.global_position if hit_receiver is Node3D else "N/A", " -- applying 100 damage")
+				hit_receiver.take_damage(100)
+			else:
+				print("[SPECIAL OPS] Direct ray collider has no damage receiver in its parent chain.")
+		else:
+			print("[SPECIAL OPS] Direct ray hit NOTHING. Ray end=", ray_end)
+
+	print("[SPECIAL OPS] Shot hit position: ", hit_position)
 	if mission_controller and mission_controller.has_method("player_fired"): mission_controller.player_fired()
 	await get_tree().create_timer(fire_rate).timeout
 	if is_inside_tree(): can_fire = true
