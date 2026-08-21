@@ -24,8 +24,12 @@ func _ready() -> void:
 	health = max_health
 	target = get_tree().get_first_node_in_group("player") as Player
 	set_physics_process(target != null)
-	var body_collision_layer := collision.get_parent().collision_layer if collision and collision.get_parent() is CollisionObject3D else "N/A"
-	var body_collision_mask := collision.get_parent().collision_mask if collision and collision.get_parent() is CollisionObject3D else "N/A"
+	var body_collision_layer: Variant = "N/A"
+	var body_collision_mask: Variant = "N/A"
+	var collision_body := collision.get_parent() as CollisionObject3D if collision else null
+	if collision_body:
+		body_collision_layer = collision_body.collision_layer
+		body_collision_mask = collision_body.collision_mask
 	print("[SPECIAL OPS] Enemy ready: ", name, " position=", global_position, " health=", health, " body_collision_layer=", body_collision_layer, " body_collision_mask=", body_collision_mask)
 
 func _physics_process(delta: float) -> void:
@@ -78,15 +82,3 @@ func _play_hit_feedback() -> void:
 	hit_tween.tween_property(self, "scale", original_scale, 0.08)
 
 func _die() -> void:
-	defeated_state = true
-	velocity = Vector3.ZERO
-	set_physics_process(false)
-	collision.set_deferred("disabled", true)
-	defeated.emit()
-	var death_tween := create_tween()
-	death_tween.set_parallel(true)
-	death_tween.tween_property(self, "rotation_degrees:x", -85.0, 0.28).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-	death_tween.tween_property(self, "position:y", max(0.2, position.y - 0.65), 0.28).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-	death_tween.set_parallel(false)
-	death_tween.tween_interval(0.35)
-	death_tween.tween_callback(queue_free)
