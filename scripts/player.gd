@@ -1,6 +1,8 @@
 extends CharacterBody3D
 class_name Player
 
+const ImpactEffectScene := preload("res://scenes/effects/impact_effect.tscn")
+
 @export var walk_speed := 5.0
 @export var sprint_speed := 8.0
 @export var crouch_speed := 2.5
@@ -27,6 +29,9 @@ var muzzle_flash_tween: Tween
 @onready var weapon_ray: RayCast3D = $Head/Camera3D/WeaponRay
 @onready var weapon: MeshInstance3D = $Head/Camera3D/Weapon
 @onready var muzzle_flash: OmniLight3D = $Head/Camera3D/MuzzleFlash
+@onready var shot_sound: AudioStreamPlayer = $Sounds/Shot
+@onready var reload_sound: AudioStreamPlayer = $Sounds/Reload
+@onready var hurt_sound: AudioStreamPlayer = $Sounds/Hurt
 
 func _ready() -> void:
 	_ensure_input_actions()
@@ -133,19 +138,23 @@ func shoot() -> void:
 	ammo -= 1
 	can_fire = false
 	_play_shot_animation()
+	_play_sound(shot_sound)
 
 	weapon_ray.force_raycast_update()
 	var target: Object = weapon_ray.get_collider() if weapon_ray.is_colliding() else null
 
 	if target and target.has_method("take_damage"):
 		target.take_damage(25)
+		_spawn_impact(weapon_ray.get_collision_point(), weapon_ray.get_collision_normal())
 	else:
 		var query := PhysicsRayQueryParameters3D.create(camera.global_position, camera.global_position + (-camera.global_transform.basis.z * 100.0))
 		query.collision_mask = 1
 		query.exclude = [self]
 		var hit := get_world_3d().direct_space_state.intersect_ray(query)
-		if hit and hit.get("collider") and hit.collider.has_method("take_damage"):
-			hit.collider.take_damage(25)
+		if hit and hit.get("collider"):
+			if hit.collider.has_method("take_damage"):
+				hit.collider.take_damage(25)
+			_spawn_impact(hit.position, hit.get("normal", Vector3.UP))
 
 	if mission_controller and mission_controller.has_method("player_fired"):
 		mission_controller.player_fired()
@@ -169,10 +178,23 @@ func _play_shot_animation() -> void:
 	weapon_recoil_tween.tween_property(weapon, "position", Vector3(0.55, -0.4, -0.78), 0.035)
 	weapon_recoil_tween.tween_property(weapon, "position", Vector3(0.55, -0.4, -0.9), 0.09)
 
+func _spawn_impact(point: Vector3, normal: Vector3) -> void:
+	var effect := ImpactEffectScene.instantiate() as Node3D
+	get_tree().current_scene.add_child(effect)
+	effect.global_position = point + normal * 0.02
+	effect.look_at(point + normal, Vector3.UP) if normal.length() > 0.01 else null
+
+func _play_sound(player: AudioStreamPlayer) -> void:
+	# Hook is always safe to call - if no audio asset has been assigned
+	# yet, this is a no-op so missing sound files never block gameplay.
+	if player and player.stream:
+		player.play()
+
 func reload() -> void:
 	if not mission_active or get_tree().paused or is_reloading or ammo >= magazine_size or reserve_ammo <= 0:
 		return
 	is_reloading = true
+	_play_sound(reload_sound)
 	await get_tree().create_timer(1.1).timeout
 	if not is_inside_tree():
 		return
@@ -186,6 +208,7 @@ func take_damage(amount: int) -> void:
 	if not mission_active or get_tree().paused:
 		return
 	health -= amount
+	_play_sound(hurt_sound)
 	if mission_controller and mission_controller.has_method("player_health_changed"):
 		mission_controller.player_health_changed(health)
 	if health <= 0:

@@ -44,3 +44,11 @@ omni_range = 4.0
 position = Vector3(0.55, -0.4, -0.9)
 rotation_degrees = Vector3(90, 0, 0)
 mesh = SubResource("Gun")
+
+[node name="Sounds" type="Node" parent="."]
+
+[node name="Shot" type="AudioStreamPlayer" parent="Sounds"]
+
+[node name="Reload" type="AudioStreamPlayer" parent="Sounds"]
+
+[node name="Hurt" type="AudioStreamPlayer" parent="Sounds"]
