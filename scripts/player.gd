@@ -23,6 +23,10 @@ var pitch := -0.12
 var mission_controller: Node
 var weapon_recoil_tween: Tween
 var muzzle_flash_tween: Tween
+var shot_flash_tween: Tween
+var shot_flash: MeshInstance3D
+const WEAPON_REST_POSITION := Vector3(0.45, -0.32, -0.72)
+const WEAPON_RECOIL_POSITION := Vector3(0.45, -0.32, -0.60)
 @onready var camera: Camera3D = $Head/Camera3D
 @onready var weapon_ray: RayCast3D = $Head/Camera3D/WeaponRay
 @onready var weapon: MeshInstance3D = $Head/Camera3D/Weapon
@@ -35,8 +39,32 @@ func _ready() -> void:
 	camera.current = true
 	set_physics_process(false)
 	muzzle_flash.visible = false
+	# The weapon is a first-person visual only. Keep it below/right of the
+	# camera and point its barrel forward instead of rotating the barrel upward.
+	weapon.position = WEAPON_REST_POSITION
+	weapon.rotation_degrees = Vector3.ZERO
+	weapon.scale = Vector3(0.8, 0.8, 0.8)
+	_create_shot_flash()
 	if not OS.has_feature("mobile"):
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+
+func _create_shot_flash() -> void:
+	shot_flash = MeshInstance3D.new()
+	shot_flash.name = "RuntimeShotFlash"
+	shot_flash.visible = false
+	shot_flash.position = Vector3(0.45, -0.32, -1.18)
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.28, 0.28)
+	var material := StandardMaterial3D.new()
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	material.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	material.albedo_color = Color(1.0, 0.55, 0.05, 1.0)
+	material.emission_enabled = true
+	material.emission = Color(1.0, 0.25, 0.02, 1.0)
+	material.emission_energy_multiplier = 6.0
+	quad.material = material
+	shot_flash.mesh = quad
+	camera.add_child(shot_flash)
 
 func _ensure_input_actions() -> void:
 	var actions := {
@@ -163,11 +191,20 @@ func _play_shot_animation() -> void:
 	muzzle_flash_tween.tween_property(muzzle_flash, "light_energy", 0.0, 0.07)
 	muzzle_flash_tween.tween_callback(func(): muzzle_flash.visible = false)
 
+	if shot_flash:
+		shot_flash.visible = true
+		shot_flash.scale = Vector3(1.25, 1.25, 1.25)
+		if shot_flash_tween and shot_flash_tween.is_valid():
+			shot_flash_tween.kill()
+		shot_flash_tween = create_tween()
+		shot_flash_tween.tween_property(shot_flash, "scale", Vector3(0.15, 0.15, 0.15), 0.08)
+		shot_flash_tween.tween_callback(func(): shot_flash.visible = false)
+
 	if weapon_recoil_tween and weapon_recoil_tween.is_valid():
 		weapon_recoil_tween.kill()
 	weapon_recoil_tween = create_tween()
-	weapon_recoil_tween.tween_property(weapon, "position", Vector3(0.55, -0.4, -0.78), 0.035)
-	weapon_recoil_tween.tween_property(weapon, "position", Vector3(0.55, -0.4, -0.9), 0.09)
+	weapon_recoil_tween.tween_property(weapon, "position", WEAPON_RECOIL_POSITION, 0.035)
+	weapon_recoil_tween.tween_property(weapon, "position", WEAPON_REST_POSITION, 0.09)
 
 func reload() -> void:
 	if not mission_active or get_tree().paused or is_reloading or ammo >= magazine_size or reserve_ammo <= 0:
