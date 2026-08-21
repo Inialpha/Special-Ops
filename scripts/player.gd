@@ -147,41 +147,39 @@ func shoot() -> void:
 	can_fire = false
 	_play_shot_animation()
 
-	var origin := camera.global_position
-	var direction := -camera.global_transform.basis.z
+	var viewport_size := get_viewport().get_visible_rect().size
+	var crosshair_center := viewport_size * 0.5
+	var origin := camera.project_ray_origin(crosshair_center)
+	var direction := camera.project_ray_normal(crosshair_center).normalized()
 	var ray_end := origin + direction * 100.0
+
+	print("[SPECIAL OPS] SHOT fired. Camera position=", camera.global_position, " rotation=", camera.global_rotation, " center=", crosshair_center, " ray_origin=", origin, " direction=", direction)
+
 	weapon_ray.force_raycast_update()
-	var target: Object = weapon_ray.get_collider() if weapon_ray.is_colliding() else null
+	var weapon_ray_target: Object = weapon_ray.get_collider() if weapon_ray.is_colliding() else null
+	if weapon_ray_target:
+		print("[SPECIAL OPS] WeaponRay diagnostic hit: ", weapon_ray_target, " type=", weapon_ray_target.get_class())
+	else:
+		print("[SPECIAL OPS] WeaponRay diagnostic hit: NOTHING")
+
+	var query := PhysicsRayQueryParameters3D.create(origin, ray_end)
+	query.collision_mask = 1
+	query.exclude = [self]
+	var hit := get_world_3d().direct_space_state.intersect_ray(query)
 	var hit_position := ray_end
-	var receiver: Node = _find_damage_receiver(target)
 
-	print("[SPECIAL OPS] SHOT fired. Camera position=", origin, " direction=", direction)
-	if target:
-		print("[SPECIAL OPS] WeaponRay hit: ", target, " type=", target.get_class(), " position=", target.global_position if target is Node3D else "N/A")
-	else:
-		print("[SPECIAL OPS] WeaponRay hit: NOTHING")
-
-	if receiver:
-		hit_position = (target as Node3D).global_position if target is Node3D else hit_position
-		print("[SPECIAL OPS] DAMAGE RECEIVER FOUND: ", receiver.name, " at ", receiver.global_position if receiver is Node3D else "N/A", " -- applying 100 damage")
-		receiver.take_damage(100)
-	else:
-		var query := PhysicsRayQueryParameters3D.create(origin, ray_end)
-		query.collision_mask = 1
-		query.exclude = [self]
-		var hit := get_world_3d().direct_space_state.intersect_ray(query)
-		if hit and hit.get("collider"):
-			var hit_collider: Object = hit.collider
-			hit_position = hit.get("position", ray_end)
-			var hit_receiver := _find_damage_receiver(hit_collider)
-			print("[SPECIAL OPS] Direct ray hit: ", hit_collider, " at position=", hit_position)
-			if hit_receiver:
-				print("[SPECIAL OPS] DIRECT DAMAGE RECEIVER FOUND: ", hit_receiver.name, " at ", hit_receiver.global_position if hit_receiver is Node3D else "N/A", " -- applying 100 damage")
-				hit_receiver.take_damage(100)
-			else:
-				print("[SPECIAL OPS] Direct ray collider has no damage receiver in its parent chain.")
+	if hit and hit.get("collider"):
+		var hit_collider: Object = hit.collider
+		hit_position = hit.get("position", ray_end)
+		var hit_receiver := _find_damage_receiver(hit_collider)
+		print("[SPECIAL OPS] Camera-center ray hit: ", hit_collider, " type=", hit_collider.get_class(), " at position=", hit_position)
+		if hit_receiver:
+			print("[SPECIAL OPS] DAMAGE RECEIVER FOUND: ", hit_receiver.name, " at ", hit_receiver.global_position if hit_receiver is Node3D else "N/A", " -- applying 100 damage")
+			hit_receiver.take_damage(100)
 		else:
-			print("[SPECIAL OPS] Direct ray hit NOTHING. Ray end=", ray_end)
+			print("[SPECIAL OPS] Camera-center ray collider has no damage receiver in its parent chain.")
+	else:
+		print("[SPECIAL OPS] Camera-center ray hit NOTHING. Ray end=", ray_end)
 
 	print("[SPECIAL OPS] Shot hit position: ", hit_position)
 	if mission_controller and mission_controller.has_method("player_fired"): mission_controller.player_fired()
