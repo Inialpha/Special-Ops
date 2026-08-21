@@ -12,6 +12,7 @@ class_name Player
 @export var magazine_size := 30
 @export var reserve_ammo := 120
 @export var fire_rate := 0.12
+@export var shots_to_kill := 1
 
 var health := 100
 var ammo := 30
@@ -39,8 +40,6 @@ func _ready() -> void:
 	camera.current = true
 	set_physics_process(false)
 	muzzle_flash.visible = false
-	# The weapon is a first-person visual only. Keep it below/right of the
-	# camera and point its barrel forward instead of rotating the barrel upward.
 	weapon.position = WEAPON_REST_POSITION
 	weapon.rotation_degrees = Vector3.ZERO
 	weapon.scale = Vector3(0.8, 0.8, 0.8)
@@ -67,25 +66,14 @@ func _create_shot_flash() -> void:
 	camera.add_child(shot_flash)
 
 func _ensure_input_actions() -> void:
-	var actions := {
-		"move_forward": KEY_W,
-		"move_back": KEY_S,
-		"move_left": KEY_A,
-		"move_right": KEY_D,
-		"sprint": KEY_SHIFT,
-		"crouch": KEY_C,
-		"reload": KEY_R,
-		"interact": KEY_E
-	}
+	var actions := {"move_forward": KEY_W, "move_back": KEY_S, "move_left": KEY_A, "move_right": KEY_D, "sprint": KEY_SHIFT, "crouch": KEY_C, "reload": KEY_R, "interact": KEY_E}
 	for action in actions:
-		if not InputMap.has_action(action):
-			InputMap.add_action(action)
+		if not InputMap.has_action(action): InputMap.add_action(action)
 		if InputMap.action_get_events(action).is_empty():
 			var event := InputEventKey.new()
 			event.physical_keycode = actions[action]
 			InputMap.action_add_event(action, event)
-	if not InputMap.has_action("shoot"):
-		InputMap.add_action("shoot")
+	if not InputMap.has_action("shoot"): InputMap.add_action("shoot")
 	if InputMap.action_get_events("shoot").is_empty():
 		var mouse_event := InputEventMouseButton.new()
 		mouse_event.button_index = MOUSE_BUTTON_LEFT
@@ -94,43 +82,35 @@ func _ensure_input_actions() -> void:
 func start_mission() -> void:
 	mission_active = true
 	set_physics_process(true)
-	if not OS.has_feature("mobile"):
-		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	if not OS.has_feature("mobile"): Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 func stop_mission() -> void:
 	mission_active = false
 	set_physics_process(false)
 	velocity = Vector3.ZERO
-	if not OS.has_feature("mobile"):
-		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	if not OS.has_feature("mobile"): Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 func toggle_pause() -> void:
-	if not mission_active:
-		return
+	if not mission_active: return
 	get_tree().paused = not get_tree().paused
-	if not OS.has_feature("mobile"):
-		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if get_tree().paused else Input.MOUSE_MODE_CAPTURED
+	if not OS.has_feature("mobile"): Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if get_tree().paused else Input.MOUSE_MODE_CAPTURED
 
 func apply_look(delta: Vector2) -> void:
-	if not mission_active or get_tree().paused:
-		return
+	if not mission_active or get_tree().paused: return
 	rotate_y(-delta.x * touch_sensitivity)
 	pitch = clamp(pitch - delta.y * touch_sensitivity, -1.2, 1.0)
 	camera.rotation.x = pitch
 
 func _unhandled_input(event: InputEvent) -> void:
-	if not mission_active or get_tree().paused:
-		return
+	if not mission_active or get_tree().paused: return
 	if event is InputEventMouseMotion and not OS.has_feature("mobile") and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		rotate_y(-event.relative.x * mouse_sensitivity)
 		pitch = clamp(pitch - event.relative.y * mouse_sensitivity, -1.2, 1.0)
 		camera.rotation.x = pitch
-	elif event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
-		toggle_pause()
+	elif event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE: toggle_pause()
 
 func _physics_process(delta: float) -> void:
-	if not mission_active or get_tree().paused:
-		return
+	if not mission_active or get_tree().paused: return
 	var input_vec := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 	var direction := (transform.basis * Vector3(input_vec.x, 0, input_vec.y)).normalized()
 	is_crouching = Input.is_action_pressed("crouch")
@@ -141,78 +121,59 @@ func _physics_process(delta: float) -> void:
 	else:
 		velocity.x = move_toward(velocity.x, 0, acceleration * delta)
 		velocity.z = move_toward(velocity.z, 0, acceleration * delta)
-	if not is_on_floor():
-		velocity.y -= gravity * delta
-	else:
-		velocity.y = -0.2
+	if not is_on_floor(): velocity.y -= gravity * delta
+	else: velocity.y = -0.2
 	move_and_slide()
-	if Input.is_action_just_pressed("shoot"):
-		shoot()
-	if Input.is_action_just_pressed("reload"):
-		reload()
+	if Input.is_action_just_pressed("shoot"): shoot()
+	if Input.is_action_just_pressed("reload"): reload()
 
 func shoot() -> void:
-	if not mission_active or get_tree().paused or not can_fire or is_reloading:
-		return
+	if not mission_active or get_tree().paused or not can_fire or is_reloading: return
 	if ammo <= 0:
 		reload()
 		return
-
 	ammo -= 1
 	can_fire = false
 	_play_shot_animation()
-
 	weapon_ray.force_raycast_update()
 	var target: Object = weapon_ray.get_collider() if weapon_ray.is_colliding() else null
-
 	if target and target.has_method("take_damage"):
-		target.take_damage(25)
+		target.take_damage(100)
 	else:
 		var query := PhysicsRayQueryParameters3D.create(camera.global_position, camera.global_position + (-camera.global_transform.basis.z * 100.0))
 		query.collision_mask = 1
 		query.exclude = [self]
 		var hit := get_world_3d().direct_space_state.intersect_ray(query)
 		if hit and hit.get("collider") and hit.collider.has_method("take_damage"):
-			hit.collider.take_damage(25)
-
-	if mission_controller and mission_controller.has_method("player_fired"):
-		mission_controller.player_fired()
-
+			hit.collider.take_damage(100)
+	if mission_controller and mission_controller.has_method("player_fired"): mission_controller.player_fired()
 	await get_tree().create_timer(fire_rate).timeout
-	if is_inside_tree():
-		can_fire = true
+	if is_inside_tree(): can_fire = true
 
 func _play_shot_animation() -> void:
 	muzzle_flash.visible = true
 	muzzle_flash.light_energy = 5.0
-	if muzzle_flash_tween and muzzle_flash_tween.is_valid():
-		muzzle_flash_tween.kill()
+	if muzzle_flash_tween and muzzle_flash_tween.is_valid(): muzzle_flash_tween.kill()
 	muzzle_flash_tween = create_tween()
 	muzzle_flash_tween.tween_property(muzzle_flash, "light_energy", 0.0, 0.07)
 	muzzle_flash_tween.tween_callback(func(): muzzle_flash.visible = false)
-
 	if shot_flash:
 		shot_flash.visible = true
 		shot_flash.scale = Vector3(1.25, 1.25, 1.25)
-		if shot_flash_tween and shot_flash_tween.is_valid():
-			shot_flash_tween.kill()
+		if shot_flash_tween and shot_flash_tween.is_valid(): shot_flash_tween.kill()
 		shot_flash_tween = create_tween()
 		shot_flash_tween.tween_property(shot_flash, "scale", Vector3(0.15, 0.15, 0.15), 0.08)
 		shot_flash_tween.tween_callback(func(): shot_flash.visible = false)
-
-	if weapon_recoil_tween and weapon_recoil_tween.is_valid():
-		weapon_recoil_tween.kill()
+	if weapon_recoil_tween and weapon_recoil_tween.is_valid(): weapon_recoil_tween.kill()
 	weapon_recoil_tween = create_tween()
 	weapon_recoil_tween.tween_property(weapon, "position", WEAPON_RECOIL_POSITION, 0.035)
 	weapon_recoil_tween.tween_property(weapon, "position", WEAPON_REST_POSITION, 0.09)
 
 func reload() -> void:
-	if not mission_active or get_tree().paused or is_reloading or ammo >= magazine_size or reserve_ammo <= 0:
-		return
+	if not mission_active or get_tree().paused or is_reloading or ammo >= magazine_size or reserve_ammo <= 0: return
 	is_reloading = true
 	await get_tree().create_timer(1.1).timeout
-	if not is_inside_tree():
-		return
+	if not is_inside_tree(): return
 	var needed := magazine_size - ammo
 	var loaded: int = min(needed, reserve_ammo)
 	ammo += loaded
@@ -220,10 +181,7 @@ func reload() -> void:
 	is_reloading = false
 
 func take_damage(amount: int) -> void:
-	if not mission_active or get_tree().paused:
-		return
+	if not mission_active or get_tree().paused: return
 	health -= amount
-	if mission_controller and mission_controller.has_method("player_health_changed"):
-		mission_controller.player_health_changed(health)
-	if health <= 0:
-		stop_mission()
+	if mission_controller and mission_controller.has_method("player_health_changed"): mission_controller.player_health_changed(health)
+	if health <= 0: stop_mission()
